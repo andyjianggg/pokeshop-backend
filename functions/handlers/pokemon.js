@@ -16,7 +16,10 @@ exports.getAllPokemon = (request, response) => {
       });
       return response.json(pokemon);
     })
-    .catch((error) => console.error(error));
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
 };
 
 exports.addOnePokemon = (request, response) => {
@@ -188,8 +191,3 @@ exports.searchPokemon = (request, response) => {
     })
     .catch((error) => console.error(error));
 };
-
-// TODO
-// exports.checkout = (request, response) => {
-
-// };

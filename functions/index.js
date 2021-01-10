@@ -13,9 +13,16 @@ const {
   addToCart,
   removeFromCart,
   searchPokemon,
-  checkout,
 } = require("./handlers/pokemon");
-const { signup, login, getCart } = require("./handlers/users");
+
+const {
+  signup,
+  login,
+  getCart,
+  getUser,
+  addCredits,
+  checkout,
+} = require("./handlers/users");
 
 // pokemon routes
 app.get("/pokemon", getAllPokemon);
@@ -26,11 +33,13 @@ app.post("/pokemon", userAuth, addOnePokemon);
 app.post("/pokemon/:pokemonId/image", userAuth, uploadImage);
 app.post("/pokemon/:pokemonId/addCart", userAuth, addToCart);
 app.post("/pokemon/:pokemonId/removeCart", userAuth, removeFromCart);
-// app.post('/pokemon/checkout', userAuth, checkout);
 
 // users routes
 app.post("/signup", signup);
 app.post("/login", login);
 app.get("/user/cart", userAuth, getCart);
+app.get("/user", userAuth, getUser);
+app.post("/user/addCredits", userAuth, addCredits);
+app.post("/user/checkout", userAuth, checkout);
 
 exports.api = functions.https.onRequest(app);

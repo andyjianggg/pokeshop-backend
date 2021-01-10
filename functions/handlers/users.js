@@ -1,4 +1,4 @@
-const { db } = require("../util/admin");
+const { admin, db } = require("../util/admin");
 const { validateSignupData, validateLoginData } = require("../util/validators");
 
 const config = require("../util/config");
@@ -47,6 +47,7 @@ exports.signup = (request, response) => {
         lastName: newUser.lastName,
         createdAt: new Date().toISOString(),
         userId,
+        userCredits: 0,
       };
       return db.doc(`/users/${newUser.handle}`).set(userInfo);
     })
@@ -58,7 +59,9 @@ exports.signup = (request, response) => {
       if (error.code === "auth/email-already-in-use") {
         return response.status(400).json({ email: "email is already in use" });
       } else {
-        return response.status(500).json({ general: 'Something went wrong, please try again' });
+        return response
+          .status(500)
+          .json({ general: "Something went wrong, please try again" });
       }
     });
 };
@@ -112,5 +115,84 @@ exports.getCart = (request, response) => {
       });
       return response.json(pokemon);
     })
-    .catch((error) => console.error(error));
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
+};
+
+exports.getUser = (request, response) => {
+  db.doc(`/users/${request.user.handle}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        return response.json(doc.data());
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
+};
+
+exports.addCredits = (request, response) => {
+  db.doc(`/users/${request.body.userHandle}`)
+    .get()
+    .then((doc) => {
+      const userCredits = doc.data().userCredits + request.body.addCredits;
+      db.doc(`/users/${request.body.userHandle}`).update({ userCredits });
+    })
+    .then(() => {
+      return response.json({ message: "Credits added successfully " });
+    })
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
+};
+
+const refFromURL = (URL) => {
+  return decodeURIComponent(URL.split("/").pop().split("?")[0]);
+};
+
+exports.checkout = (request, response) => {
+  let totalCost = 0;
+  db.collection("pokemon")
+    .where("carts", "array-contains", request.user.handle)
+    .get()
+    .then((data) => {
+      data.forEach((doc) => {
+        totalCost = totalCost + doc.data().cost;
+        const imageUrl = refFromURL(doc.data().imageUrl);
+        admin.storage().bucket().file(imageUrl).delete();
+        doc.ref.delete();
+      });
+    })
+    .then(() => {
+      const userDoc = db.doc(`/users/${request.user.handle}`);
+      userDoc
+        .get()
+        .then((doc) => {
+          if (doc.exists) {
+            return doc.data().userCredits;
+          } else {
+            return response.status(400).json({ error: "user not found" });
+          }
+        })
+        .then((res) => {
+          const userCredits = res - totalCost;
+          userDoc.update({ userCredits });
+        })
+        .catch((error) => {
+          console.error(error);
+          return response.status(500).json({ error: error.code });
+        });
+    })
+    .then(() => {
+      return response.json({ message: "pokemon checked out successfully" });
+    })
+    .catch((error) => {
+      console.error(error);
+      return response.status(500).json({ error: error.code });
+    });
 };
